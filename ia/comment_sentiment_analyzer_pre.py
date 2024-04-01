@@ -2,11 +2,24 @@ import re
 from transformers import pipeline
 from transformers import AutoTokenizer
 from tqdm import tqdm
+import glob
+import pandas as pd
+from datetime import datetime
 
 # Cargar la pipeline de análisis de sentimientos, que incluye el modelo y el tokenizador
 sentiment_pipeline = pipeline("text-classification", model="lxyuan/distilbert-base-multilingual-cased-sentiments-student")
 # Cargar el tokenizador
 tokenizer = AutoTokenizer.from_pretrained("lxyuan/distilbert-base-multilingual-cased-sentiments-student")
+
+def getInput():
+    excel_files = glob.glob(f'input/*.xlsx')
+    if excel_files:
+        df = pd.read_excel(excel_files[0])
+        df_filtered = df.copy()
+        return df_filtered
+    else:
+        print(f"No se encontraron archivos de Excel en la carpeta input")
+        return pd.DataFrame()
 
 def normalize_comment(comment):
     # Asegúrate de que comment es una cadena de texto
@@ -25,10 +38,10 @@ def normalize_comment(comment):
 
 def analyze_comments(df):
     df = df.copy()
-    df.loc[:, 'Comentarios'] = df['Comentarios'].astype(str)
-    df.loc[:, 'Asunto'] = df['Asunto'].astype(str)
-    df.loc[:, 'Asignado'] = df['Asignado'].astype(str)
-    df.loc[:, 'Resultado'] = df['Resultado'].astype(str)
+    df.loc[:, 'Comentarios'] = df['Comentarios'].fillna('').astype(str)
+    df.loc[:, 'Asunto'] = df['Asunto'].fillna('').astype(str)
+    df.loc[:, 'Asignado'] = df['Asignado'].fillna('').astype(str)
+    df.loc[:, 'Resultado'] = df['Resultado'].fillna('').astype(str)
     df.loc[:, 'Concatenado'] = df.apply(lambda row: 
                                     "Vendedor: " + row['Asignado'] + ". "
                                     "Asunto: " + row['Asunto'] 
@@ -46,9 +59,17 @@ def analyze_comments(df):
     return df
 
 def analyze_if_valid(concatenado, comentario, resultado):
-        if isinstance(comentario, str) and len(comentario) > 3 and isinstance(resultado, str) and len(resultado) > 3:
-            return sentiment_pipeline(normalize_comment(concatenado))[0]
-        else:
-            return {'label': 'none', 'score': 0}
+    if (isinstance(comentario, str) and len(comentario) > 3) or (isinstance(resultado, str) and len(resultado) > 3):
+        return sentiment_pipeline(normalize_comment(concatenado))[0]
+    else:
+        return {'label': 'none', 'score': 0}
 
+def main():
+    comments = getInput()
+    analyzed_comments = analyze_comments(comments)
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    filename = f'input_pos_ia/file_{timestamp}.xlsx'
+    analyzed_comments.to_excel(filename, index=False)
 
+if __name__ == "__main__":
+    main()

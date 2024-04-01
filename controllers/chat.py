@@ -3,8 +3,9 @@ from fastapi.responses import JSONResponse
 from datetime import datetime
 import pandas as pd
 from excel_process.filter1 import filter_region_week, count_tfv_visits
+from ia.open_ai_1 import get_openai_response
 """ from ia.comment_sentiment_analyzer2 import analyze_comments """
-from ia.comment_sentiment_analyzer3 import analyze_comments
+""" from ia.comment_sentiment_analyzer3 import analyze_comments """
 
 conversation_main = {}
 
@@ -130,7 +131,7 @@ def intWeek(week: Week):
     print("Regional: ", regional_main)
     print("Week: ", week_main)
     data_filtered_main = filter_region_week(regional_main, int(week_main))
-    data_filtered_main = analyze_comments(data_filtered_main)
+    """ data_filtered_main = analyze_comments(data_filtered_main) """
     result = count_tfv_visits(data_filtered_main)
     current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
     body = {
@@ -140,7 +141,7 @@ def intWeek(week: Week):
         "date": str(current_date),
         "add_type": "tables",
         "add_data": [result.to_dict(orient="records")],
-        "messageEnd": "¿Deseas ver el resumen de comentarios?"
+        "messageEnd": ' **TFV**: Tiempo fuera de visita.  **%TFV**: Porcentaje de TFV.  **V**: Visitas sin contar las TFV.  **%V**: Porcentaje de visitas sin contar las TFV.  **VP**: Visitas planificadas sin contar las TFV.  **VR**: Visitas realizadas sin contar las TFV.  **C**: Comentarios.  **%C**: Porcentaje de comentarios sobre V.  **C+**: Comentarios positivos con score mayor al 50%.  **C-**: Comentarios negativos con score mayor al 50%.  **CD**: Comentarios duplicados.  **%CD**: Porcentaje de comentarios duplicados sobre C.\n\n  ¿Deseas ver el resumen de comentarios?  '
     }
     conv = addMessageConversation(conversation_main, body)
     print(conv)
@@ -154,22 +155,32 @@ def reqComments():
     comments = data_filtered_main[['Concatenado', 'label', 'score']]
     top_positive_comments, top_negative_comments = filter_top_comments(comments)
     combined_json = create_json(comments, top_positive_comments, top_negative_comments)
-    print('combined_json: ')
-    print(combined_json)
+
+    # Convertir los primeros top_negative_comments en un solo string
+    negative_comments_str = ' '.join(top_negative_comments.head(5)['Comentario'].tolist())
+    
+    # Pasar este string como argumento a la función get_openai_response()
+    openai_response_negative = get_openai_response("quiero que me des un resumen de los comentarios negativos de los vendedores, identifica topicos relevantes: " + negative_comments_str)
+
+    positive_comments_str = ' '.join(top_positive_comments.head(5)['Comentario'].tolist())
+
+    openai_response_positive = get_openai_response("quiero que me des un resumen de los comentarios positivos de los vendedores, identifica topicos relevantes: " + positive_comments_str)
+
     body = {
         "user": "Bot",
         "message": """
         Te mostraré los 10 comentarios mas relevates negativos y los 10 mas positivos:""",
         "date": str(current_date),
         "add_type": "tables",
-        "add_data": [combined_json['top_positive_comments'],combined_json['top_negative_comments']],
-        "messageEnd": "¿Deseas realizar otra consulta?"
+        "add_data": [combined_json['top_negative_comments'],combined_json['top_positive_comments']],
+        "messageEnd": f"# Resumen de comentarios negativos:\n\n{openai_response_negative}\n\n# Resumen de comentarios positivos:\n\n{openai_response_positive}"
     }
     conv = addMessageConversation(conversation_main, body)
     print(conv)
     return JSONResponse(status_code=200, content=body)
 
 def filter_top_comments(comments):
+    comments = comments.drop_duplicates(subset=['Concatenado'])
     positive_comments = comments[comments['label'] == 'positive']
     negative_comments = comments[comments['label'] == 'negative']
     top_positive_comments = positive_comments.sort_values(by='score', ascending=False)[['Concatenado', 'label', 'score']].head(10)
@@ -182,11 +193,13 @@ def filter_top_comments(comments):
 
 def create_json(comments, top_positive_comments, top_negative_comments):
     comments_list = comments.to_dict(orient='records')
+    top_positive_comments = top_positive_comments.rename(columns={'Comentario': 'Top 10 comentarios positivos'})
     top_positive_comments_list = top_positive_comments.to_dict(orient='records')
+    top_negative_comments = top_negative_comments.rename(columns={'Comentario': 'Top 10 comentarios negativos'})
     top_negative_comments_list = top_negative_comments.to_dict(orient='records')
     combined_json = {
-        'top_negative_comments': top_positive_comments_list,
-        'top_positive_comments': top_negative_comments_list
+        'top_positive_comments': top_positive_comments_list,
+        'top_negative_comments': top_negative_comments_list
     }
     return combined_json
 
