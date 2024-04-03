@@ -11,8 +11,15 @@ def filter_region_week(region, week):
         df = pd.read_excel(excel_files[0])
         df['REGION'] = df['REGION'].str.lower().apply(lambda val: unicodedata.normalize('NFKD', val).encode('ascii', 'ignore').decode())
         region = unicodedata.normalize('NFKD', region.lower()).encode('ascii', 'ignore').decode()
-        df_filtered = df.query(f'REGION == "{region}" and SEMANA == {week}')
-        """ df_filtered = df.copy() """
+
+        query = []
+        if region != "todas":
+            query.append(f'REGION == "{region}"')
+        if week != "todas":
+            query.append(f'SEMANA == {week}')
+
+        df_filtered = df.query(" and ".join(query)) if query else df.copy()
+
         return df_filtered
     else:
         print(f"No se encontraron archivos de Excel en la carpeta input")
@@ -33,16 +40,20 @@ def count_tfv_visits(df):
     df['Comentarios'] = df['Comentarios'].apply(normalize_comment)
     df['Resultado'] = df['Resultado'].apply(normalize_comment)
     df['Concat'] = df['Comentarios'] + ' ' + df['Resultado']
-    tfv_count = df[df['Asunto'] == 'TFV'].groupby('Asignado').size()
+
+    # Crear una nueva columna 'Semanas' con los valores únicos de 'SEMANA' separados por comas y agrupados por 'Asignado'
+    df['Semanas'] = df.groupby('Asignado')['SEMANA'].transform(lambda x: ','.join(map(str, x.unique())))
+
+    tfv_count = df[df['Asunto'] == 'TFV'].groupby(['Asignado', 'REGION']).size()
     visitas = df[df['Asunto'] != 'TFV']
-    visitas_count = visitas.groupby('Asignado').size()
-    planificada_count = visitas[visitas['Estatus de la visita'] == 'Planificada'].groupby('Asignado').size()
-    visitas_realizadas = visitas[visitas['Estatus de la visita'] == 'Realizada'].groupby('Asignado').size()
+    visitas_count = visitas.groupby(['Asignado', 'REGION']).size()
+    planificada_count = visitas[visitas['Estatus de la visita'] == 'Planificada'].groupby(['Asignado', 'REGION']).size()
+    visitas_realizadas = visitas[visitas['Estatus de la visita'] == 'Realizada'].groupby(['Asignado', 'REGION']).size()
     comments = visitas[(visitas['Comentarios'].str.len() > 3) & (visitas['Resultado'].str.len() > 3)]
-    comments_count = comments.groupby('Asignado').size()
-    positive_comments_count = comments[(comments['label'] == 'positive') & (comments['score'] > 0.5)].groupby('Asignado').size()
-    negative_comments_count = comments[(comments['label'] == 'negative') & (comments['score'] > 0.5)].groupby('Asignado').size()
-    duplicated_concatenados_count = comments[comments['Concat'].duplicated()].groupby('Asignado').size()
+    comments_count = comments.groupby(['Asignado', 'REGION']).size()
+    positive_comments_count = comments[(comments['label'] == 'positive') & (comments['score'] > 0.5)].groupby(['Asignado', 'REGION']).size()
+    negative_comments_count = comments[(comments['label'] == 'negative') & (comments['score'] > 0.5)].groupby(['Asignado', 'REGION']).size()
+    duplicated_concatenados_count = comments[comments['Concat'].duplicated()].groupby(['Asignado', 'REGION']).size()
 
     result = pd.DataFrame({
         'TFV': tfv_count,
@@ -56,6 +67,9 @@ def count_tfv_visits(df):
     })
 
     result = result.reset_index()
+
+    # Agregar la columna 'Semanas' a 'result'
+    result = result.merge(df[['Asignado', 'Semanas']].drop_duplicates(), on='Asignado', how='left')
 
     # Reemplazar NaN e inf con 0
     result = result.replace([np.inf, -np.inf], np.nan)
@@ -77,6 +91,31 @@ def count_tfv_visits(df):
     result['%C'] = (result['%C'] * 100).round(0).astype(int).astype(str) + '%'
     result['%CD'] = (result['%CD'] * 100).round(0).astype(int).astype(str) + '%'
 
-    result = result[['Asignado', 'TFV', '%TFV', 'V', '%V', 'VP','VR','C', '%C', 'C+', 'C-', 'CD', '%CD']]
+    result = result[['Asignado', 'REGION', 'Semanas', 'TFV', '%TFV', 'V', '%V', 'VP', 'VR', 'C', '%C', 'C+', 'C-', 'CD', '%CD']]
 
-    return result
+    # Cambiar el nombre de la columna 'REGION' a 'REGION__'
+    result = result.rename(columns={'REGION': 'REGION__'})
+    # Ordenar 'result' por 'REGION__' y 'C-' en orden descendente
+    result = result.sort_values(['REGION__', 'C-'], ascending=[True, False])
+
+    kw = palabras_clave_mas_repetidas(df)
+    print('palabras_clave_mas_repetidas: ')
+    print(kw)
+
+    return [result, kw]
+
+def palabras_clave_mas_repetidas(df):
+    columnas = ['tags_productos', 'tags_negocio', 'tags_competidores', 'tags_visita']
+    palabras_clave_mas_repetidas = []
+
+    for columna in columnas:
+        # Separamos las palabras clave en cada celda
+        palabras_clave = df[columna].str.split(', ').explode()
+        # Obtenemos todas las palabras clave junto con su frecuencia
+        palabras_clave_con_frecuencia = ', '.join([f'{palabra} ({frecuencia})' for palabra, frecuencia in palabras_clave.value_counts().items()])
+        palabras_clave_mas_repetidas.append([columna, palabras_clave_con_frecuencia])
+
+    # Convertimos la lista de listas en un DataFrame
+    df_resultado = pd.DataFrame(palabras_clave_mas_repetidas, columns=['Categoría', 'Palabra clave (Frecuencia)'])
+
+    return df_resultado

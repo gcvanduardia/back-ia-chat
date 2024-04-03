@@ -45,7 +45,35 @@ def clientMessage(message: Message):
         return intWeek(week)
     if secuence == 3:
         if message.message == "si":
-            return reqComments()
+            return reqTopComments()
+        if message.message == "no":
+            current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
+            body = {
+                "user": "Bot",
+                "message": "Ok, hasta luego",
+                "date": str(current_date),
+                "add_type": "none"
+            }
+            conv = addMessageConversation(conversation_main, body)
+            print(conv)
+            return JSONResponse(status_code=200, content=body)
+    if secuence == 4:
+        if message.message == "si":
+            return reqSummaryNegativeComments()
+        if message.message == "no":
+            current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
+            body = {
+                "user": "Bot",
+                "message": "Ok, hasta luego",
+                "date": str(current_date),
+                "add_type": "none"
+            }
+            conv = addMessageConversation(conversation_main, body)
+            print(conv)
+            return JSONResponse(status_code=200, content=body)
+    if secuence == 5:
+        if message.message == "si":
+            return reqSummaryPositiveComments()
         if message.message == "no":
             current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
             body = {
@@ -130,9 +158,9 @@ def intWeek(week: Week):
     week_main = week.week
     print("Regional: ", regional_main)
     print("Week: ", week_main)
-    data_filtered_main = filter_region_week(regional_main, int(week_main))
+    data_filtered_main = filter_region_week(regional_main, week_main)
     """ data_filtered_main = analyze_comments(data_filtered_main) """
-    result = count_tfv_visits(data_filtered_main)
+    result, kw = count_tfv_visits(data_filtered_main)
     current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
     body = {
         "user": "Bot",
@@ -140,14 +168,38 @@ def intWeek(week: Week):
             Te mostraré el resumen de tu consulta para regional {} y semana {}:""".format(regional_main, week_main),
         "date": str(current_date),
         "add_type": "tables",
-        "add_data": [result.to_dict(orient="records")],
-        "messageEnd": ' **TFV**: Tiempo fuera de visita.  **%TFV**: Porcentaje de TFV.  **V**: Visitas sin contar las TFV.  **%V**: Porcentaje de visitas sin contar las TFV.  **VP**: Visitas planificadas sin contar las TFV.  **VR**: Visitas realizadas sin contar las TFV.  **C**: Comentarios.  **%C**: Porcentaje de comentarios sobre V.  **C+**: Comentarios positivos con score mayor al 50%.  **C-**: Comentarios negativos con score mayor al 50%.  **CD**: Comentarios duplicados.  **%CD**: Porcentaje de comentarios duplicados sobre C.\n\n  ¿Deseas ver el resumen de comentarios?  '
+        "add_data": [result.to_dict(orient="records"), kw.to_dict(orient="records")],
+        "table_title": ["# Resumen de la semana {} para el regional {}".format(week_main, regional_main), "# Palabras clave y su frecuencia"],
+        "table_legend": [' **TFV**: Tiempo fuera de visita.  **%TFV**: Porcentaje de TFV.  **V**: Visitas sin contar las TFV.  **%V**: Porcentaje de visitas sin contar las TFV.  **VP**: Visitas planificadas sin contar las TFV.  **VR**: Visitas realizadas sin contar las TFV.  **C**: Comentarios.  **%C**: Porcentaje de comentarios sobre V.  **C+**: Comentarios positivos con score mayor al 50%.  **C-**: Comentarios negativos con score mayor al 50%.  **CD**: Comentarios duplicados.  **%CD**: Porcentaje de comentarios duplicados sobre C.',""],
+        "messageEnd": '\n\n  ¿Deseas ver los 10 comentarios mas relevates negativos y los 10 mas positivos?\n\n'
     }
     conv = addMessageConversation(conversation_main, body)
     print(conv)
     return JSONResponse(status_code=200, content=body)
 
-def reqComments():
+def reqTopComments():
+    global conversation_main
+    global data_filtered_main
+    current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
+    """ comments = analyze_comments(data_filtered_main) """
+    comments = data_filtered_main[['Concatenado', 'label', 'score']]
+    top_positive_comments, top_negative_comments = filter_top_comments(comments)
+    combined_json = create_json(comments, top_positive_comments, top_negative_comments)
+    body = {
+        "user": "Bot",
+        "message": """
+        Te mostraré los 10 comentarios mas relevates negativos y los 10 mas positivos:""",
+        "date": str(current_date),
+        "add_type": "tables",
+        "add_data": [combined_json['top_negative_comments'],combined_json['top_positive_comments']],
+        "table_title": ["# Top 10 comentarios negativos", "# Top 10 comentarios positivos"],
+        "messageEnd": "¿Quieres ver el resumen de los comentarios negativos mas relevantes?"
+    }
+    conv = addMessageConversation(conversation_main, body)
+    print(conv)
+    return JSONResponse(status_code=200, content=body)
+
+def reqSummaryNegativeComments():
     global conversation_main
     global data_filtered_main
     current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
@@ -160,20 +212,40 @@ def reqComments():
     negative_comments_str = ' '.join(top_negative_comments.head(5)['Comentario'].tolist())
     
     # Pasar este string como argumento a la función get_openai_response()
-    openai_response_negative = get_openai_response("quiero que me des un resumen de los comentarios negativos de los vendedores, identifica topicos relevantes: " + negative_comments_str)
-
-    positive_comments_str = ' '.join(top_positive_comments.head(5)['Comentario'].tolist())
-
-    openai_response_positive = get_openai_response("quiero que me des un resumen de los comentarios positivos de los vendedores, identifica topicos relevantes: " + positive_comments_str)
+    openai_response_negative = get_openai_response("quiero que me des un resumen de los comentarios negativos de los vendedores, agrupa por tópicos relevantes: " + negative_comments_str)
 
     body = {
         "user": "Bot",
         "message": """
-        Te mostraré los 10 comentarios mas relevates negativos y los 10 mas positivos:""",
+        Te mostraré el resumen de los comentarios negativos mas relevantes:""",
         "date": str(current_date),
-        "add_type": "tables",
-        "add_data": [combined_json['top_negative_comments'],combined_json['top_positive_comments']],
-        "messageEnd": f"# Resumen de comentarios negativos:\n\n{openai_response_negative}\n\n# Resumen de comentarios positivos:\n\n{openai_response_positive}"
+        "add_type": "none",
+        "messageEnd": f"# Resumen de comentarios negativos:\n\n{openai_response_negative}\n\n ¿Quieres ver el resumen de los comentarios positivos mas relevantes?"
+    }
+    conv = addMessageConversation(conversation_main, body)
+    print(conv)
+    return JSONResponse(status_code=200, content=body)
+
+def reqSummaryPositiveComments():
+    global conversation_main
+    global data_filtered_main
+    current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
+    """ comments = analyze_comments(data_filtered_main) """
+    comments = data_filtered_main[['Concatenado', 'label', 'score']]
+    top_positive_comments, top_negative_comments = filter_top_comments(comments)
+    combined_json = create_json(comments, top_positive_comments, top_negative_comments)
+
+    positive_comments_str = ' '.join(top_positive_comments.head(5)['Comentario'].tolist())
+
+    openai_response_positive = get_openai_response("quiero que me des un resumen de los comentarios positivos de los vendedores, agrupa por tópicos relevantes: " + positive_comments_str)
+
+    body = {
+        "user": "Bot",
+        "message": """
+        Te mostraré el resumen de los comentarios positivos mas relevantes:""",
+        "date": str(current_date),
+        "add_type": "none",
+        "messageEnd": f"# Resumen de comentarios positivos:\n\n{openai_response_positive}\n\n"
     }
     conv = addMessageConversation(conversation_main, body)
     print(conv)
@@ -193,9 +265,9 @@ def filter_top_comments(comments):
 
 def create_json(comments, top_positive_comments, top_negative_comments):
     comments_list = comments.to_dict(orient='records')
-    top_positive_comments = top_positive_comments.rename(columns={'Comentario': 'Top 10 comentarios positivos'})
+    top_positive_comments = top_positive_comments.rename(columns={'Comentario': 'Comentario'})
     top_positive_comments_list = top_positive_comments.to_dict(orient='records')
-    top_negative_comments = top_negative_comments.rename(columns={'Comentario': 'Top 10 comentarios negativos'})
+    top_negative_comments = top_negative_comments.rename(columns={'Comentario': 'Comentario'})
     top_negative_comments_list = top_negative_comments.to_dict(orient='records')
     combined_json = {
         'top_positive_comments': top_positive_comments_list,

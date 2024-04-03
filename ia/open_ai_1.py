@@ -9,8 +9,8 @@ def get_openai_response(content):
     openai.api_key = ''
 
     assistant = openai.beta.assistants.create(
-        name="Cristof",
-        instructions="tu eres un analista de datos de la empresa Essilor. Essilor es una compañía francesa que produce lentes oftálmicas además de equipamiento óptico. Está situada en París, Francia, y cotiza en la Bolsa Euronext de París.",
+        name="Essbot",
+        instructions="tu eres un analista de datos de la empresa Essilor. Essilor es una compañía francesa ubicada en Colombia que produce lentes oftálmicas además de equipamiento óptico.",
         tools=[{"type": "code_interpreter"}],
         model="gpt-4-0125-preview"
     )
@@ -26,7 +26,7 @@ def get_openai_response(content):
     run = openai.beta.threads.runs.create(
       thread_id=thread.id,
       assistant_id=assistant.id,
-      instructions="Diríjase al usuario como David. El usuario es un gerente regional."
+      instructions="Diríjase al usuario como Juan. El usuario es un gerente regional."
     )
     while True:
         run = openai.beta.threads.runs.retrieve(
