@@ -1,19 +1,14 @@
 import re
-from transformers import pipeline
-from transformers import AutoTokenizer
 from tqdm import tqdm
 import glob
 import pandas as pd
 from datetime import datetime
-import emoji
+from tagsClasification import encontrar_palabras_clave
 
-# Cargar la pipeline de análisis de sentimientos, que incluye el modelo y el tokenizador
-sentiment_pipeline = pipeline("text-classification", model="lxyuan/distilbert-base-multilingual-cased-sentiments-student")
-# Cargar el tokenizador
-tokenizer = AutoTokenizer.from_pretrained("lxyuan/distilbert-base-multilingual-cased-sentiments-student")
+palabras_clave = [ "Davivienda", "Nequi", "Banco", "Préstamos", "Aplicaciones", "Intereses", "Problemas técnicos", "Quejas", "Crédito", "Banco de Bogotá", "Intereses altos", "Negado", "Libre inversión", "Préstamo", "Tasas", "Pagos", "Tarjeta de crédito", "Aplicación", "Problemas", "Cliente", "Deuda", "Asesoría", "App", "Banco virtual", "Tasa de interés", "Bancolombia", "Falabella", "Nubank", "Cooperativas", "Compra de cartera", "Coopcentral", "Serfinanza", "Caja social", "Bancolombia", "Occidente", "BBVA", "Popular", "GNB", "AV", "Argrario" ]
 
 def getInput():
-    excel_files = glob.glob(f'input_davivienda/*.xlsx')
+    excel_files = glob.glob(f'output_pos_ia_davivienda/*.xlsx')
     if excel_files:
         df = pd.read_excel(excel_files[0])
         df_filtered = df.copy()
@@ -26,51 +21,35 @@ def normalize_comment(comment):
     # Asegúrate de que comment es una cadena de texto
     if not isinstance(comment, str):
         comment = str(comment)
-    # Convierte los emoticones en palabras
-    comment = emoji.demojize(comment)
     # Convierte a minúsculas
     """ comment = comment.lower() """
     # Elimina caracteres especiales (manteniendo espacios y alfanuméricos)
     """ comment = re.sub(r'[^a-z0-9\s]', '', comment) """
     # Reemplaza múltiples espacios con uno solo
     comment = re.sub(r'\s+', ' ', comment).strip()
-    # Truncar a 512 tokens
-    tokens = tokenizer(comment, truncation=True, max_length=400)
-    comment = tokenizer.decode(tokens['input_ids'])
     return comment
 
-def analyze_comments(df):
-
+def analyze_comments(df, palabras_clave, nueva_columna):
+    print('Analizando ', nueva_columna, '...')
     df = df.copy()
     df.loc[:, 'Comment'] = df['Comment'].fillna('').astype(str)
     df.loc[:, 'titulovideo'] = df['titulovideo'].fillna('').astype(str)
-    df.loc[:, 'Likes'] = pd.to_numeric(df['Likes'], errors='coerce').fillna(0)
+    df.loc[:, 'Likes'] = pd.to_numeric(df['Likes'], errors='coerce')
     df.loc[:, 'Concatenado'] = df.apply(lambda row: 
                                     "Likes: " + str(row['Likes']) + ". "
                                     "Video: " + row['titulovideo'] 
                                  + (". Comentario: " + row['Comment'] if row['Comment'] != '' else ""), axis=1)
-
-    # Analizar el sentimiento de cada 'Concatenado' y almacenar los resultados en las nuevas columnas
+    
     tqdm.pandas()  # Habilita la barra de progreso para `progress_apply`
-    results = df.progress_apply(lambda row: analyze_if_valid(row['Concatenado'], row['Comment']), axis=1)
-
-    # Separar los resultados en dos columnas 'label' y 'score'
-    df['label'] = results.apply(lambda x: x['label'])
-    df['score'] = results.apply(lambda x: x['score'])
+    df[nueva_columna] = df['Concatenado'].progress_apply(lambda x: encontrar_palabras_clave(x, palabras_clave))
 
     return df
 
-def analyze_if_valid(concatenado, comentario):
-    if (isinstance(comentario, str) and len(comentario) > 3):
-        return sentiment_pipeline(normalize_comment(concatenado))[0]
-    else:
-        return {'label': 'none', 'score': 0}
-
 def main():
     comments = getInput()
-    analyzed_comments = analyze_comments(comments)
+    analyzed_comments = analyze_comments(comments, palabras_clave, 'palabras_clave')
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    filename = f'output_pos_ia_davivienda/file_{timestamp}.xlsx'
+    filename = f'input_pos_ia_davivienda/file_{timestamp}.xlsx'
     analyzed_comments.to_excel(filename, index=False)
 
 if __name__ == "__main__":

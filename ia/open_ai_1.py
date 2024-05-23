@@ -9,8 +9,8 @@ def get_openai_response(content):
     openai.api_key = ''
 
     assistant = openai.beta.assistants.create(
-        name="Essbot",
-        instructions="tu eres un analista de datos de la empresa Essilor. Essilor es una compañía francesa ubicada en Colombia que produce lentes oftálmicas además de equipamiento óptico.",
+        name="botIA",
+        instructions="tu eres un analista de comentarios de las diferentes campañas en redes sociales del banco Davivienda.",
         tools=[{"type": "code_interpreter"}],
         model="gpt-4-0125-preview"
     )

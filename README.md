@@ -70,8 +70,9 @@ coverage report -m
 coverage html
 ```
 
-
-
+```shell
+uvicorn main:app --reload
+```
 
 
 
