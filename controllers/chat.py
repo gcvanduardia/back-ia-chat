@@ -38,6 +38,18 @@ class Message(BaseModel):
 def clientMessage(message: Message):
     print('client message:', message)
     secuence = message.sequence
+    if secuence != 0:
+        openai_response = get_openai_response(message.message)
+        current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
+        body = {
+            "user": "Bot",
+            "message": "",
+            "messageEnd": openai_response,
+            "date": str(current_date),
+            "add_type": "none"
+        }
+        conv = addMessageConversation(conversation_main, body)
+        return JSONResponse(status_code=200, content=body)
     if secuence == 1:
         option_main = Option(option_main=message.message)
         return filter_option_main(option_main)
@@ -131,9 +143,7 @@ def init():
     global conversation_main
     conversation_main = newConversation()
     current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
-    message = "¡Hola Juan!\n¿Sobre que temática quieres consultar?\n"
-    for i, option in enumerate(init_options_main, 1):
-        message += f"{i}. {option}\n"
+    message = "¡Hola Juan!\n¿en que te puedo ayudar?\n"
     body = {
         "user": "Bot",
         "message": message,
