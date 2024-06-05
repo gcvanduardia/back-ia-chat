@@ -1,18 +1,22 @@
+from dotenv import load_dotenv
+import os
 import openai
 import time
+
+load_dotenv()
 
 def get_openai_response(content):
 
     print('***** openai input: ')
     print(content)
 
-    openai.api_key = ''
+    openai.api_key = os.getenv("OPENAI_API_KEY")
 
     assistant = openai.beta.assistants.create(
         name="Essbot",
         instructions="tu eres un analista de datos de la empresa Essilor. Essilor es una compañía francesa ubicada en Colombia que produce lentes oftálmicas además de equipamiento óptico.",
         tools=[{"type": "code_interpreter"}],
-        model="gpt-4-0125-preview"
+        model="gpt-4o"
     )
 
     thread = openai.beta.threads.create()
