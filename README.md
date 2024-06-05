@@ -30,7 +30,7 @@ pip install -r requirements.txt --trusted-host pypi.org --trusted-host pypi.pyth
 ```
 
 ## STEP 5 (first time) openai config
-NOWIA--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--NOWIA
+put apikey
 
 ## STEP 6 (every time) run serve
 ```shell
