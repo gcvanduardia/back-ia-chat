@@ -39,60 +39,29 @@ def clientMessage(message: Message):
     secuence = message.sequence
     if secuence == 1:
         regional = Regional(regional=message.message)
+        addContextOpenai('el usuario desea consultar el regional: ' + regional.regional)
         return intRegional(regional)
     if secuence == 2:
         week = Week(week=message.message)
+        addContextOpenai('el usuario desea consultar la semana: ' + week.week)
         return intWeek(week)
     if secuence == 3:
         if message.message == "si":
+            addContextOpenai('el usuario desea ver los comentarios mas relevantes')
             return reqTopComments()
-        if message.message == "no":
-            current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
-            body = {
-                "user": "Bot",
-                "message": "Ok, hasta luego",
-                "date": str(current_date),
-                "add_type": "none"
-            }
-            conv = addMessageConversation(conversation_main, body)
-            print(conv)
-            return JSONResponse(status_code=200, content=body)
+        else:
+            return naturalOpenaiResponse(message.message)
     if secuence == 4:
         if message.message == "si":
             return reqSummaryNegativeComments()
-        if message.message == "no":
-            current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
-            body = {
-                "user": "Bot",
-                "message": "Ok, hasta luego",
-                "date": str(current_date),
-                "add_type": "none"
-            }
-            conv = addMessageConversation(conversation_main, body)
-            print(conv)
-            return JSONResponse(status_code=200, content=body)
+        else:
+            return naturalOpenaiResponse(message.message)
     if secuence == 5:
         if message.message == "si":
             return reqSummaryPositiveComments()
-        if message.message == "no":
-            current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
-            body = {
-                "user": "Bot",
-                "message": "Ok, hasta luego",
-                "date": str(current_date),
-                "add_type": "none"
-            }
-            conv = addMessageConversation(conversation_main, body)
-            print(conv)
-            return JSONResponse(status_code=200, content=body)
-    current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
-    body = {
-        "user": "Bot",
-        "message": 'No entiendo tu mensaje',
-        "date": str(current_date),
-        "add_type": "none"
-    }
-    return JSONResponse(status_code=200, content=body)
+        else:
+            return naturalOpenaiResponse(message.message)
+    return naturalOpenaiResponse(message.message)
 
 def init():
     global conversation_main
@@ -173,6 +142,7 @@ def intWeek(week: Week):
         "table_legend": [' **TFV**: Tiempo fuera de visita.  **%TFV**: Porcentaje de TFV.  **V**: Visitas sin contar las TFV.  **%V**: Porcentaje de visitas sin contar las TFV.  **VP**: Visitas planificadas sin contar las TFV.  **VR**: Visitas realizadas sin contar las TFV.  **C**: Comentarios.  **%C**: Porcentaje de comentarios sobre V.  **C+**: Comentarios positivos con score mayor al 50%.  **C-**: Comentarios negativos con score mayor al 50%.  **CD**: Comentarios duplicados.  **%CD**: Porcentaje de comentarios duplicados sobre C.',""],
         "messageEnd": '\n\n  ¿Deseas ver los 10 comentarios mas relevates negativos y los 10 mas positivos?\n\n'
     }
+    addContextOpenai('La leyenda del resutado de la condulta es: ' + body['table_legend'][0] + '. El resutado de la condulta es: ' + result.to_string() + ', las palabras clave en la consulta son: ' + kw.to_string())
     conv = addMessageConversation(conversation_main, body)
     print(conv)
     return JSONResponse(status_code=200, content=body)
@@ -185,6 +155,7 @@ def reqTopComments():
     comments = data_filtered_main[['Concatenado', 'label', 'score']]
     top_positive_comments, top_negative_comments = filter_top_comments(comments)
     combined_json = create_json(comments, top_positive_comments, top_negative_comments)
+    addContextOpenai('los comentarios negativos mas relevantes son: ' + ' '.join(top_negative_comments.head(10)['Comentario'].tolist())+ ' y los comentarios positivos mas relevantes son: ' + ' '.join(top_positive_comments.head(10)['Comentario'].tolist()))
     body = {
         "user": "Bot",
         "message": """
@@ -274,6 +245,26 @@ def create_json(comments, top_positive_comments, top_negative_comments):
         'top_negative_comments': top_negative_comments_list
     }
     return combined_json
+
+
+def naturalOpenaiResponse(message: str):
+    global conversation_main
+    current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
+    openai_response = get_openai_response(message)
+    body = {
+        "user": "Bot",
+        "message": """""",
+        "date": str(current_date),
+        "add_type": "none",
+        "messageEnd": f"{openai_response}"
+    }
+    conv = addMessageConversation(conversation_main, body)
+    print(conv)
+    return JSONResponse(status_code=200, content=body)
+
+def addContextOpenai(message: str):
+    onenay_response = get_openai_response('agrega a tu contexto y no respondas nada: '+ message)
+    print(onenay_response)
 
 
 

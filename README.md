@@ -29,22 +29,11 @@ if ssl certificate problem:
 pip install -r requirements.txt --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host=files.pythonhosted.org
 ```
 
-
-## STEP 5 (every time)  Locate the input files
-Locate the input files in `data/input`. Items: 
-- **legacy**: List of legacy projects `*.xlsx`
-- **projects**: 'output file from the Coding Standards process named `*-cs-prs-detail*.csv'`
-- **sonar**: 'sonar report corresponding to the analysis month named `Reporte_Metricas_Sonar-*.xlsx'` 
-
-* Multiple files can be uploaded for each item and the process will concatenate them into a single file for each item.
-
-## STEP 6 (every time) Initialize main program
+## STEP 5 (every time) run serve
 ```shell
-python run.py
+uvicorn main:app --reload
 ```
 
-## STEP 7 (every time) Read the output file
-The output is a file located in `data/output` named `quality-gates_*.xlsx`.
 
 
 

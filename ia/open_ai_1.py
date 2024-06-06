@@ -5,21 +5,19 @@ import time
 
 load_dotenv()
 
-def get_openai_response(content):
+openai.api_key = os.getenv("OPENAI_API_KEY")
+assistant = openai.beta.assistants.create(
+    name="Essbot",
+    instructions="tu eres un analista de datos de la empresa Essilor. Essilor es una compañía que produce lentes oftálmicas además de equipamiento óptico.",
+    tools=[{"type": "code_interpreter"}],
+    model="gpt-4o"
+)
 
+thread = openai.beta.threads.create()
+
+def get_openai_response(content):
     print('***** openai input: ')
     print(content)
-
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-
-    assistant = openai.beta.assistants.create(
-        name="Essbot",
-        instructions="tu eres un analista de datos de la empresa Essilor. Essilor es una compañía francesa ubicada en Colombia que produce lentes oftálmicas además de equipamiento óptico.",
-        tools=[{"type": "code_interpreter"}],
-        model="gpt-4o"
-    )
-
-    thread = openai.beta.threads.create()
 
     message = openai.beta.threads.messages.create(
         thread_id=thread.id,
@@ -29,9 +27,9 @@ def get_openai_response(content):
 
     run = openai.beta.threads.runs.create(
       thread_id=thread.id,
-      assistant_id=assistant.id,
-      instructions="Diríjase al usuario como Juan. El usuario es un gerente regional."
+      assistant_id=assistant.id
     )
+
     while True:
         run = openai.beta.threads.runs.retrieve(
           thread_id=thread.id,
@@ -57,3 +55,10 @@ def get_openai_response(content):
     print(response)
     
     return response
+
+
+
+
+
+
+
