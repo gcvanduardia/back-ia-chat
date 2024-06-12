@@ -37,6 +37,9 @@ class Message(BaseModel):
 def clientMessage(message: Message):
     print('client message:', message)
     secuence = message.sequence
+
+    """ secuence = 10 """
+    
     if secuence == 1:
         regional = Regional(regional=message.message)
         addContextOpenai('el usuario desea consultar el regional: ' + regional.regional)
@@ -53,12 +56,12 @@ def clientMessage(message: Message):
             return naturalOpenaiResponse(message.message)
     if secuence == 4:
         if message.message == "si":
-            return reqSummaryNegativeComments()
+            return reqSummaryNegativeComments("3")
         else:
             return naturalOpenaiResponse(message.message)
     if secuence == 5:
         if message.message == "si":
-            return reqSummaryPositiveComments()
+            return reqSummaryPositiveComments("4")
         else:
             return naturalOpenaiResponse(message.message)
     return naturalOpenaiResponse(message.message)
@@ -67,17 +70,15 @@ def init():
     global conversation_main
     conversation_main = newConversation()
     current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
+    openai_response = get_openai_response("saludame y dame un muy breve resumen de nuestra ultima conversación.")
     body = {
         "user": "Bot",
-        "message": """
-            ¡Hola Juan! 
-            Ingresa el código del regional que deseas consultar
-        """,
+        "message": """""",
         "date": str(current_date),
-        "add_type": "none"
+        "add_type": "none",
+        "messageEnd": openai_response + " si quieres información de otra regional ingresa el código de la regional."
     }
     conv = addMessageConversation(conversation_main, body)
-    print(conv)
     return JSONResponse(status_code=200, content=body)
 
 regional_main = ""
@@ -97,7 +98,6 @@ def intRegional(regional: Regional):
         "add_type": "none"
     }
     conv = addMessageConversation(conversation_main, body)
-    print(conv)
     return reqWeek()
 
 def reqWeek():
@@ -110,7 +110,6 @@ def reqWeek():
         "add_type": "none"
     }
     conv = addMessageConversation(conversation_main, body)
-    print(conv)
     return JSONResponse(status_code=200, content=body)
 
 week_main = ""
@@ -142,9 +141,9 @@ def intWeek(week: Week):
         "table_legend": [' **TFV**: Tiempo fuera de visita.  **%TFV**: Porcentaje de TFV.  **V**: Visitas sin contar las TFV.  **%V**: Porcentaje de visitas sin contar las TFV.  **VP**: Visitas planificadas sin contar las TFV.  **VR**: Visitas realizadas sin contar las TFV.  **C**: Comentarios.  **%C**: Porcentaje de comentarios sobre V.  **C+**: Comentarios positivos con score mayor al 50%.  **C-**: Comentarios negativos con score mayor al 50%.  **CD**: Comentarios duplicados.  **%CD**: Porcentaje de comentarios duplicados sobre C.',""],
         "messageEnd": '\n\n  ¿Deseas ver los 10 comentarios mas relevates negativos y los 10 mas positivos?\n\n'
     }
-    addContextOpenai('La leyenda del resutado de la condulta es: ' + body['table_legend'][0] + '. El resutado de la condulta es: ' + result.to_string() + ', las palabras clave en la consulta son: ' + kw.to_string())
+    addContextOpenai('La leyenda del resutado de la condulta es: ' + body['table_legend'][0] + '. El resutado de la condulta es: ' + result.to_string())
+    addContextOpenai('las palabras clave y su frecuencia son: ' + kw.to_string())
     conv = addMessageConversation(conversation_main, body)
-    print(conv)
     return JSONResponse(status_code=200, content=body)
 
 def reqTopComments():
@@ -155,7 +154,16 @@ def reqTopComments():
     comments = data_filtered_main[['Concatenado', 'label', 'score']]
     top_positive_comments, top_negative_comments = filter_top_comments(comments)
     combined_json = create_json(comments, top_positive_comments, top_negative_comments)
-    addContextOpenai('los comentarios negativos mas relevantes son: ' + ' '.join(top_negative_comments.head(10)['Comentario'].tolist())+ ' y los comentarios positivos mas relevantes son: ' + ' '.join(top_positive_comments.head(10)['Comentario'].tolist()))
+
+    addContextOpenai('Los comentarios negativos mas relevantes son: ' + ' '.join(top_negative_comments.head(5)['Comentario'].tolist()))
+    addContextOpenai('Los comentarios positivos mas relevantes son: ' + ' '.join(top_positive_comments.head(5)['Comentario'].tolist()))
+
+    comments = data_filtered_main[['Concatenado', 'tags_competidores', 'tags_productos','score']]
+    tag_comments = filter_tag_comments(comments, 'tags_competidores')
+    addContextOpenai('los comentarios con tags de comepetidores son: ' + ' '.join(tag_comments['Comentario'].tolist()))
+    tag_comments = filter_tag_comments(comments, 'tags_productos')
+    addContextOpenai('los comentarios con tags de producto son: ' + ' '.join(tag_comments['Comentario'].tolist()))
+
     body = {
         "user": "Bot",
         "message": """
@@ -167,7 +175,6 @@ def reqTopComments():
         "messageEnd": "¿Quieres ver el resumen de los comentarios negativos mas relevantes?"
     }
     conv = addMessageConversation(conversation_main, body)
-    print(conv)
     return JSONResponse(status_code=200, content=body)
 
 def reqSummaryNegativeComments():
@@ -194,7 +201,6 @@ def reqSummaryNegativeComments():
         "messageEnd": f"# Resumen de comentarios negativos:\n\n{openai_response_negative}\n\n ¿Quieres ver el resumen de los comentarios positivos mas relevantes?"
     }
     conv = addMessageConversation(conversation_main, body)
-    print(conv)
     return JSONResponse(status_code=200, content=body)
 
 def reqSummaryPositiveComments():
@@ -219,7 +225,6 @@ def reqSummaryPositiveComments():
         "messageEnd": f"# Resumen de comentarios positivos:\n\n{openai_response_positive}\n\n"
     }
     conv = addMessageConversation(conversation_main, body)
-    print(conv)
     return JSONResponse(status_code=200, content=body)
 
 def filter_top_comments(comments):
@@ -233,6 +238,15 @@ def filter_top_comments(comments):
     top_positive_comments = top_positive_comments.rename(columns={'Concatenado': 'Comentario'})
     top_negative_comments = top_negative_comments.rename(columns={'Concatenado': 'Comentario'})
     return top_positive_comments, top_negative_comments
+
+def filter_tag_comments(comments, tags_column):
+    comments_with_tags = comments[comments[tags_column].notna() & (comments[tags_column] != '')]
+    comments_with_tags = comments_with_tags.drop_duplicates(subset=['Concatenado'])
+    comments_with_tags = comments_with_tags.rename(columns={'Concatenado': 'Comentario'})
+    comments_with_tags = comments_with_tags.sort_values(by='score', ascending=False).head(5)
+    return comments_with_tags
+
+
 
 def create_json(comments, top_positive_comments, top_negative_comments):
     comments_list = comments.to_dict(orient='records')
@@ -259,12 +273,10 @@ def naturalOpenaiResponse(message: str):
         "messageEnd": f"{openai_response}"
     }
     conv = addMessageConversation(conversation_main, body)
-    print(conv)
     return JSONResponse(status_code=200, content=body)
 
 def addContextOpenai(message: str):
-    onenay_response = get_openai_response('agrega a tu contexto y no respondas nada: '+ message)
-    print(onenay_response)
+    onenay_response = get_openai_response('agrega a tu contexto y por favor no respondas nada: '+ message)
 
 
 
