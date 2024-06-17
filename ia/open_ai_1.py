@@ -7,9 +7,9 @@ load_dotenv()
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 assistant_id = os.getenv("ASSISTANT_ID")
-thread_id = os.getenv("THREAD_ID")
-""" thread = openai.beta.threads.create()
-thread_id = thread.id """
+""" thread_id = os.getenv("THREAD_ID") """
+thread = openai.beta.threads.create()
+thread_id = thread.id
 
 print('assistant_id: ', assistant_id)
 print('thread_id: ', thread_id)
