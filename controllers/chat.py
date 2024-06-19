@@ -23,6 +23,8 @@ def newConversation():
 
 def addMessageConversation(conversation, message):
     current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
+    if "messages" not in conversation:
+        conversation["messages"] = []
     conversation["messages"].append(message)
     conversation["date_updete"] = str(current_date)
     return conversation
@@ -38,7 +40,7 @@ def clientMessage(message: Message):
     print('client message:', message)
     secuence = message.sequence
 
-    """ secuence = 10 """
+    secuence = 10
     
     if secuence == 1:
         regional = Regional(regional=message.message)
@@ -69,17 +71,9 @@ def clientMessage(message: Message):
 def init():
     global conversation_main
     conversation_main = newConversation()
-    current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
     openai_response = get_openai_response("saludame y dame un muy breve resumen de nuestra ultima conversación.")
-    body = {
-        "user": "Bot",
-        "message": """""",
-        "date": str(current_date),
-        "add_type": "none",
-        "messageEnd": openai_response + " si quieres información de otra regional ingresa el código de la regional."
-    }
-    conv = addMessageConversation(conversation_main, body)
-    return JSONResponse(status_code=200, content=body)
+    conv = addMessageConversation(conversation_main, openai_response)
+    return JSONResponse(status_code=200, content=openai_response)
 
 regional_main = ""
 
@@ -263,17 +257,9 @@ def create_json(comments, top_positive_comments, top_negative_comments):
 
 def naturalOpenaiResponse(message: str):
     global conversation_main
-    current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
     openai_response = get_openai_response(message)
-    body = {
-        "user": "Bot",
-        "message": """""",
-        "date": str(current_date),
-        "add_type": "none",
-        "messageEnd": f"{openai_response}"
-    }
-    conv = addMessageConversation(conversation_main, body)
-    return JSONResponse(status_code=200, content=body)
+    conv = addMessageConversation(conversation_main, openai_response)
+    return JSONResponse(status_code=200, content=openai_response)
 
 def addContextOpenai(message: str):
     onenay_response = get_openai_response('agrega a tu contexto y por favor no respondas nada: '+ message)
