@@ -19,6 +19,9 @@ thread_id = thread.id
 print('assistant_id: ', assistant_id)
 print('thread_id: ', thread_id)
 
+# Diccionario global para almacenar respuestas
+cached_responses = {}
+
 def end_run(run):
     print("*****Finalizando el proceso.")
     run = openai.beta.threads.runs.cancel(
@@ -54,68 +57,83 @@ def handle_detect_function(run):
             arguments = json.loads(tool.function.arguments)
             print(f"*****Función: {function_name}")
             print(f"*****Argumentos: {arguments}")
+
+            # Crear una clave única para la función y sus argumentos
+            cache_key = f"{function_name}_{json.dumps(arguments, sort_keys=True)}"
+
+            # Verificar si la respuesta ya está en caché
+            if cache_key in cached_responses:
+                print(f"*****Usando respuesta en caché para {function_name}")
+                end_run(run)
+                return cached_responses[cache_key]
+
+            # Ejecutar la función y guardar la respuesta en caché
             if function_name == 'get_general_report':
                 result = get_general_report()
                 result_context = result['add_data']
                 print(f"Resultado: {result_context}")
                 submit_tool(run, tool, "Se ha generado un reporte general.")
+                cached_responses[cache_key] = result
                 return result
             if function_name == 'report_by_week':
                 result = report_by_week(arguments['week'])
                 result_context = result['add_data']
                 print(f"Resultado: {result_context}")
                 submit_tool(run, tool, f"se ha generado un reporte para la semana {str(arguments['week'])}.")
+                cached_responses[cache_key] = result
                 return result
             if function_name == 'report_by_region':
                 result = report_by_region(arguments['region'])
                 result_context = result['add_data']
                 print(f"Resultado: {result_context}")
                 submit_tool(run, tool, f"se ha generado un reporte para la región {str(arguments['region'])}.")
+                cached_responses[cache_key] = result
                 return result
             if function_name == 'report_by_region_and_week':
                 result = report_by_region_and_week(arguments['region'], arguments['week'])
                 result_context = result['add_data']
                 submit_tool(run, tool, f"se ha generado un reporte para la región {str(arguments['region'])} y la semana {str(arguments['week'])}.")
+                cached_responses[cache_key] = result
                 return result
             if function_name == 'comments_report':
                 result = comments_analysis(arguments['region'], arguments['week'])
                 result_context = result['add_data']
                 print(f"Resultado: {result_context}")
-                """ submit_tool(run, tool, result_context) """
                 end_run(run)
                 comments_analysis2 = get_openai_response_sub(f"Identifica los tópicos positivos y negativos mas relevantes (atención al cliente, promociones, calidad de servicio etc..) de los siguientes comentarios, al final da unas recomendaciones de aspectos a mejorar y seguir haciendo: " + str(result_context))
                 print(f"Resultado analysis: {comments_analysis2}")
                 result['messageEnd'] = comments_analysis2['messageEnd']
+                cached_responses[cache_key] = result
                 return result
             if function_name == 'comments_competitors_report':
                 result = comments_competitors_report(arguments['region'], arguments['week'], arguments['competitor'])
                 result_context = result['add_data']
                 print(f"Resultado: {result_context}")
-                """ submit_tool(run, tool, result_context) """
                 end_run(run)
                 comments_analysis2 = get_openai_response_sub(f"Identifica los tópicos positivos y negativos mas relevantes (atención al cliente, promociones, calidad de servicio etc..), con competidores (tag_competidores) de los siguientes comentarios, al final da unas recomendaciones de aspectos a mejorar y seguir haciendo: " + str(result_context))
                 print(f"Resultado analysis: {comments_analysis2}")
                 result['messageEnd'] = comments_analysis2['messageEnd']
+                cached_responses[cache_key] = result
                 return result
             if function_name == 'comments_products_report':
-                result = comments_products_report(arguments['region'], arguments['week'], arguments['products'])
+                result = comments_products_report(arguments['region'], arguments['week'], arguments['product'])
                 result_context = result['add_data']
                 print(f"Resultado: {result_context}")
-                """ submit_tool(run, tool, result_context) """
                 end_run(run)
                 comments_analysis2 = get_openai_response_sub(f"Identifica los tópicos positivos y negativos mas relevantes (atención al cliente, promociones, calidad de servicio etc..), con competidores (tag_productos) de los siguientes comentarios, al final da unas recomendaciones de aspectos a mejorar y seguir haciendo: " + str(result_context))
                 print(f"Resultado analysis: {comments_analysis2}")
                 result['messageEnd'] = comments_analysis2['messageEnd']
+                cached_responses[cache_key] = result
                 return result
             if function_name == 'comments_business_report':
                 result = comments_business_report(arguments['region'], arguments['week'], arguments['item'])
                 result_context = result['add_data']
                 print(f"Resultado: {result_context}")
-                """ submit_tool(run, tool, result_context) """
                 end_run(run)
                 comments_analysis2 = get_openai_response_sub(f"Identifica los tópicos positivos y negativos mas relevantes (atención al cliente, promociones, calidad de servicio etc..), con competidores (tag_negocio) de los siguientes comentarios, al final da unas recomendaciones de aspectos a mejorar y seguir haciendo: " + str(result_context))
                 print(f"Resultado analysis: {comments_analysis2}")
                 result['messageEnd'] = comments_analysis2['messageEnd']
+                cached_responses[cache_key] = result
                 return result
 
 def get_openai_response(content):
@@ -232,6 +250,7 @@ def get_openai_response_sub(content):
                     thread_id=thread_id,
                     run_id=run.id
                 )
+                current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
                 return {
                     "user": "Bot",
                     "message": """""",
