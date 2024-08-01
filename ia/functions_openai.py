@@ -3,22 +3,112 @@ import pandas as pd
 import unicodedata
 import numpy as np
 from datetime import datetime
-from excel_process.filter1 import filter_region_week, count_tfv_visits, global_report_by_region, region_report_by_week, week_report_by_region, comments_analysis_filt
+from excel_process.filter1 import filter_region_week, count_tfv_visits, global_report_by_region, region_report_by_week, week_report_by_region, comments_analysis_filt, comments_competitor_analysis_filt, comments_products_report_filt, comments_business_report_filt
 
 regional_main = ""
 week_main = ""
 data_filtered_main = pd.DataFrame()
 
-def comments_analysis(region, week, general):
-    combined_json = comments_analysis_filt(region, week, general)
+def comments_business_report(region, week, item):
+    combined_json = comments_business_report_filt(region, week, item)
+    mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos relacionado con el negocio:"
+    
+    if item == '':
+        item_str = 'el negocio'
+    else:
+        item_str = f'el item {item}'
+    
+    if region == '' and week == 0:
+        mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos a nivel general relacionado con {}:".format(item_str)
+    elif region == '' and week != 0:
+        mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos de la semana {} relacionado con {}:".format(week, item_str)
+    elif week == 0 and region != '':
+        mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos de la región {} relacionado con {}:".format(region, item_str)
+    elif region != '' and week != 0:
+        mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos de la región {} y la semana {} relacionado con {}:".format(region, week, item_str)
+    current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
+    body = {
+        "user": "Bot",
+        "message": """
+        {} """.format(mensaje),
+        "date": str(current_date),
+        "add_type": "tables",
+        "add_data": [combined_json['top_negative_comments'],combined_json['top_positive_comments']],
+        "table_title": ["# Top comentarios negativos", "# Top comentarios positivos"],
+        "messageEnd": ""
+    }
+    return body
+
+def comments_products_report(region, week, product):
+    combined_json = comments_products_report_filt(region, week, product)
+    mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos relacionado con los productos:"
+    
+    if product == '':
+        product_str = 'los productos'
+    else:
+        product_str = f'el producto {product}'
+    
+    if region == '' and week == 0:
+        mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos a nivel general relacionado con {}:".format(product_str)
+    elif region == '' and week != 0:
+        mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos de la semana {} relacionado con {}:".format(week, product_str)
+    elif week == 0 and region != '':
+        mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos de la región {} relacionado con {}:".format(region, product_str)
+    elif region != '' and week != 0:
+        mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos de la región {} y la semana {} relacionado con {}:".format(region, week, product_str)
+    current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
+    body = {
+        "user": "Bot",
+        "message": """
+        {} """.format(mensaje),
+        "date": str(current_date),
+        "add_type": "tables",
+        "add_data": [combined_json['top_negative_comments'],combined_json['top_positive_comments']],
+        "table_title": ["# Top comentarios negativos", "# Top comentarios positivos"],
+        "messageEnd": ""
+    }
+    return body
+
+def comments_competitors_report(region, week, competitor):
+    combined_json = comments_competitor_analysis_filt(region, week, competitor)
+    mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos relacionado con los competidores:"
+    
+    if competitor == '':
+        competitor_str = 'los competidores'
+    else:
+        competitor_str = f'el competidor {competitor}'
+    
+    if region == '' and week == 0:
+        mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos a nivel general relacionado con {}:".format(competitor_str)
+    elif region == '' and week != 0:
+        mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos de la semana {} relacionado con {}:".format(week, competitor_str)
+    elif week == 0 and region != '':
+        mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos de la región {} relacionado con {}:".format(region, competitor_str)
+    elif region != '' and week != 0:
+        mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos de la región {} y la semana {} relacionado con {}:".format(region, week, competitor_str)
+    current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
+    body = {
+        "user": "Bot",
+        "message": """
+        {} """.format(mensaje),
+        "date": str(current_date),
+        "add_type": "tables",
+        "add_data": [combined_json['top_negative_comments'],combined_json['top_positive_comments']],
+        "table_title": ["# Top comentarios negativos", "# Top comentarios positivos"],
+        "messageEnd": ""
+    }
+    return body
+
+def comments_analysis(region, week):
+    combined_json = comments_analysis_filt(region, week)
     mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos:"
-    if general:
+    if region == '' and week == 0:
         mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos a nivel general:"
-    elif not general and region == '':
+    elif region == '' and week != 0:
         mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos de la semana {}:".format(week)
-    elif not general and week == 0:
+    elif week == 0 and region != '':
         mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos de la región {}:".format(region)
-    elif not general and region != '' and week != 0:
+    elif region != '' and week != 0:
         mensaje = "Te mostraré los comentarios mas relevates negativos y los mas positivos de la región {} y la semana {}:".format(region, week)
     current_date = datetime.now().strftime('%Y-%m-%d %H:%M')
     body = {

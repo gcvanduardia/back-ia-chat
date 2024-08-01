@@ -4,7 +4,7 @@ import unicodedata
 import numpy as np
 import re 
 
-def comments_analysis_filt(region, week, general):
+def comments_business_report_filt(region, week, item):
     excel_files = glob.glob(f'input_pos_ia/*.xlsx')
     if not excel_files:
         print("No se encontraron archivos de Excel en la carpeta input_pos_ia")
@@ -14,11 +14,92 @@ def comments_analysis_filt(region, week, general):
     df['Resultado'] = df['Resultado'].apply(normalize_comment)
     df['Concat'] = df['Comentarios'] + ' ' + df['Resultado']
     
-    if not general and region == '':
+    if region == '' and week != 0:
         df = df[df['SEMANA'] == week]
-    elif not general and week == 0:
+    elif week == 0 and region != '':
         df = df[df['REGION'] == region]
-    elif not general and region != '' and week != 0:
+    elif region != '' and week != 0:
+        df = df[(df['REGION'] == region) & (df['SEMANA'] == week)]
+        
+    df = df[(df['tags_negocio'] != '') & df['tags_negocio'].notna()]
+    
+    if item != '':
+        df = df[df['tags_negocio'].str.contains(item, case=False)]
+    
+    comments = df[['REGION','SEMANA','Concatenado', 'label', 'score', 'tags_negocio']]
+    top_positive_comments, top_negative_comments = filter_top_comments(comments)
+    combined_json = create_json(comments, top_positive_comments, top_negative_comments)
+    return combined_json
+
+def comments_products_report_filt(region, week, product):
+    excel_files = glob.glob(f'input_pos_ia/*.xlsx')
+    if not excel_files:
+        print("No se encontraron archivos de Excel en la carpeta input_pos_ia")
+        return pd.DataFrame()
+    df = pd.read_excel(excel_files[0])
+    df['Comentarios'] = df['Comentarios'].apply(normalize_comment)
+    df['Resultado'] = df['Resultado'].apply(normalize_comment)
+    df['Concat'] = df['Comentarios'] + ' ' + df['Resultado']
+    
+    if region == '' and week != 0:
+        df = df[df['SEMANA'] == week]
+    elif week == 0 and region != '':
+        df = df[df['REGION'] == region]
+    elif region != '' and week != 0:
+        df = df[(df['REGION'] == region) & (df['SEMANA'] == week)]
+        
+    df = df[(df['tags_productos'] != '') & df['tags_productos'].notna()]
+    
+    if product != '':
+        df = df[df['tags_productos'].str.contains(product, case=False)]
+    
+    comments = df[['REGION','SEMANA','Concatenado', 'label', 'score', 'tags_productos']]
+    top_positive_comments, top_negative_comments = filter_top_comments(comments)
+    combined_json = create_json(comments, top_positive_comments, top_negative_comments)
+    return combined_json
+
+def comments_competitor_analysis_filt(region, week, competitor):
+    excel_files = glob.glob(f'input_pos_ia/*.xlsx')
+    if not excel_files:
+        print("No se encontraron archivos de Excel en la carpeta input_pos_ia")
+        return pd.DataFrame()
+    df = pd.read_excel(excel_files[0])
+    df['Comentarios'] = df['Comentarios'].apply(normalize_comment)
+    df['Resultado'] = df['Resultado'].apply(normalize_comment)
+    df['Concat'] = df['Comentarios'] + ' ' + df['Resultado']
+    
+    if region == '' and week != 0:
+        df = df[df['SEMANA'] == week]
+    elif week == 0 and region != '':
+        df = df[df['REGION'] == region]
+    elif region != '' and week != 0:
+        df = df[(df['REGION'] == region) & (df['SEMANA'] == week)]
+        
+    df = df[(df['tags_competidores'] != '') & df['tags_competidores'].notna()]
+    
+    if competitor != '':
+        df = df[df['tags_competidores'].str.contains(competitor, case=False)]
+    
+    comments = df[['REGION','SEMANA','Concatenado', 'label', 'score', 'tags_competidores']]
+    top_positive_comments, top_negative_comments = filter_top_comments(comments)
+    combined_json = create_json(comments, top_positive_comments, top_negative_comments)
+    return combined_json
+
+def comments_analysis_filt(region, week):
+    excel_files = glob.glob(f'input_pos_ia/*.xlsx')
+    if not excel_files:
+        print("No se encontraron archivos de Excel en la carpeta input_pos_ia")
+        return pd.DataFrame()
+    df = pd.read_excel(excel_files[0])
+    df['Comentarios'] = df['Comentarios'].apply(normalize_comment)
+    df['Resultado'] = df['Resultado'].apply(normalize_comment)
+    df['Concat'] = df['Comentarios'] + ' ' + df['Resultado']
+    
+    if region == '' and week != 0:
+        df = df[df['SEMANA'] == week]
+    elif week == 0 and region != '':
+        df = df[df['REGION'] == region]
+    elif region != '' and week != 0:
         df = df[(df['REGION'] == region) & (df['SEMANA'] == week)]
     comments = df[['REGION','SEMANA','Concatenado', 'label', 'score']]
     top_positive_comments, top_negative_comments = filter_top_comments(comments)
@@ -29,8 +110,8 @@ def filter_top_comments(comments):
     comments = comments.drop_duplicates(subset=['Concatenado'])
     positive_comments = comments[comments['label'] == 'positive']
     negative_comments = comments[comments['label'] == 'negative']
-    top_positive_comments = positive_comments.sort_values(by='score', ascending=False)[['REGION','SEMANA','Concatenado', 'label', 'score']].head(5)
-    top_negative_comments = negative_comments.sort_values(by='score', ascending=False)[['REGION','SEMANA','Concatenado', 'label', 'score']].head(5)
+    top_positive_comments = positive_comments.sort_values(by='score', ascending=False).head(10)
+    top_negative_comments = negative_comments.sort_values(by='score', ascending=False).head(10)
     top_positive_comments['score'] = (top_positive_comments['score'] * 100).round().astype(int).astype(str) + '%'
     top_negative_comments['score'] = (top_negative_comments['score'] * 100).round().astype(int).astype(str) + '%'
     top_positive_comments = top_positive_comments.rename(columns={'Concatenado': 'Comentario'})
@@ -50,6 +131,7 @@ def create_json(comments, top_positive_comments, top_negative_comments):
     return combined_json
 
 def week_report_by_region(week):
+    print(f"generando reporte de la semana {week}")
     excel_files = glob.glob(f'input_pos_ia/*.xlsx')
     if not excel_files:
         print("No se encontraron archivos de Excel en la carpeta input_pos_ia")

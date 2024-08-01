@@ -71,7 +71,7 @@ def clientMessage(message: Message):
 def init():
     global conversation_main
     conversation_main = newConversation()
-    openai_response = get_openai_response("saludame y dame un muy breve resumen de nuestra ultima conversación.")
+    openai_response = get_openai_response("saludame y dame un muy breve resumen de nuestra conversación")
     conv = addMessageConversation(conversation_main, openai_response)
     return JSONResponse(status_code=200, content=openai_response)
 
